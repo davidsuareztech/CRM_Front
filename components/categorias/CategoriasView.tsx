@@ -60,6 +60,19 @@ export function CategoriasView() {
     return () => abortRef.current?.abort()
   }, [loadAll])
 
+  // Support opening the create form directly from the dashboard quick action
+  // (`/categorias?nuevo=1`). Read from the URL to avoid a Suspense boundary.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("nuevo") === "1") {
+      setFormOpen(true)
+      params.delete("nuevo")
+      const query = params.toString()
+      window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname)
+    }
+  }, [])
+
   // Debounce the search input.
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search.trim()), 350)

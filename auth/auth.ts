@@ -19,11 +19,15 @@ const developmentUser: AuthUser = {
     "CATEGORIAS_CREATE",
     "CATEGORIAS_UPDATE",
     "CATEGORIAS_DELETE",
+    // Full Productos CRUD during development
+    "PRODUCTOS_READ",
+    "PRODUCTOS_CREATE",
+    "PRODUCTOS_UPDATE",
+    "PRODUCTOS_DELETE",
     // Sidebar modules visible during development
     "DASHBOARD_READ",
     "CLIENTES_READ",
     "PROVEEDORES_READ",
-    "PRODUCTOS_READ",
     "INVENTARIO_READ",
     "COMPRAS_READ",
     "VENTAS_READ",

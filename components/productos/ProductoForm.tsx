@@ -90,13 +90,11 @@ export function ProductoForm({
     else if (form.nombre.trim().length < 2) next.nombre = "El nombre es demasiado corto."
     if (!form.descripcion.trim()) next.descripcion = "La descripción es obligatoria."
     if (!form.sku.trim()) next.sku = "El SKU es obligatorio."
-    // Precio is only part of the create payload.
-    if (!isEdit) {
-      const precioNum = Number(form.precio)
-      if (form.precio.trim() === "") next.precio = "El precio es obligatorio."
-      else if (Number.isNaN(precioNum)) next.precio = "El precio debe ser un número."
-      else if (precioNum < 0) next.precio = "El precio no puede ser negativo."
-    }
+    // Precio is part of BOTH the create and update payloads.
+    const precioNum = Number(form.precio)
+    if (form.precio.trim() === "") next.precio = "El precio es obligatorio."
+    else if (Number.isNaN(precioNum)) next.precio = "El precio debe ser un número."
+    else if (precioNum < 0) next.precio = "El precio no puede ser negativo."
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -109,12 +107,13 @@ export function ProductoForm({
     setSubmitting(true)
     try {
       if (isEdit && producto) {
-        // ActualizarProductoDto — NO precio in the payload.
+        // ActualizarProductoDto — includes precio.
         await onUpdate(producto.id, {
           id_categoria: form.id_categoria,
           nombre: form.nombre.trim(),
           descripcion: form.descripcion.trim(),
           sku: form.sku.trim(),
+          precio: Number(form.precio),
           activo: form.activo,
         })
       } else {
@@ -234,15 +233,8 @@ export function ProductoForm({
               onChange={(e) => setForm((f) => ({ ...f, precio: e.target.value }))}
               placeholder="0.00"
               aria-invalid={!!errors.precio}
-              disabled={isEdit}
             />
-            {isEdit ? (
-              <p className="text-xs text-muted-foreground">
-                El precio no se modifica desde esta pantalla.
-              </p>
-            ) : errors.precio ? (
-              <p className="text-xs text-destructive">{errors.precio}</p>
-            ) : null}
+            {errors.precio ? <p className="text-xs text-destructive">{errors.precio}</p> : null}
           </div>
         </div>
 

@@ -135,6 +135,25 @@ export function handleMock(method: string, rawPath: string, ctx: MockCtx = {}): 
 
   // ---- EMPRESA --------------------------------------------------------------
   if (segments[0] === "empresa") {
+    if (path === "/empresa" && M === "POST") {
+      const b = (ctx.body as any) ?? {}
+      if (!b.nombre || !String(b.nombre).trim()) badRequest("El nombre de la empresa es obligatorio.")
+      if (!b.correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(b.correo))) {
+        badRequest("El correo no tiene un formato válido.")
+      }
+      if (!b.numero || !String(b.numero).trim()) badRequest("El teléfono es obligatorio.")
+      if (!b.nit || !String(b.nit).trim()) badRequest("El NIT es obligatorio.")
+      const nueva: Empresa = {
+        id: uuid(),
+        nombre: b.nombre,
+        correo: b.correo,
+        numero: b.numero,
+        nit: b.nit,
+        activo: typeof b.activo === "boolean" ? b.activo : true,
+        emailVerificado: false,
+      }
+      return { ...nueva }
+    }
     if (path === "/empresa/activas" && M === "GET") return empresa.activo ? [empresa] : []
     // /empresa/{id}
     if (segments.length === 2 && M === "GET") return { ...empresa }

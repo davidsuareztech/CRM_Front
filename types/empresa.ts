@@ -28,6 +28,18 @@ export type ActualizarEmpresaRequest = {
 }
 
 /**
+ * Payload for POST /empresa — matches the backend `CrearEmpresaDto`.
+ * Same required fields as the update payload.
+ */
+export type CrearEmpresaRequest = {
+  nombre: string
+  correo: string
+  numero: string
+  nit: string
+  activo: boolean
+}
+
+/**
  * Result of POST /home/verificar-codigo — matches `EmpresaValidadaDto`.
  * This is what establishes the multiempresa session on the client.
  */

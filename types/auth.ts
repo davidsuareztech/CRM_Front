@@ -15,6 +15,7 @@ export type Permission =
   | "CATEGORIAS_DELETE"
   // Empresa (multiempresa profile)
   | "EMPRESA_READ"
+  | "EMPRESA_CREATE"
   | "EMPRESA_UPDATE"
   // Other modules (declared ahead of time so the sidebar can gate on them)
   | "DASHBOARD_READ"

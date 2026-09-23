@@ -12,7 +12,13 @@
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8070/crm/api"
 
-console.log("BASE_URL:", BASE_URL)
+/**
+ * Mocks are ON by default. The v0 preview cannot reach the Spring Boot backend
+ * at `localhost:8070`, so unless `NEXT_PUBLIC_USE_MOCKS` is explicitly set to
+ * "false" every request is served from the in-memory mock backend. Set it to
+ * "false" when pointing at the real API.
+ */
+const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS !== "false"
 
 export type ApiErrorKind = "network" | "http"
 
@@ -122,6 +128,19 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
 
 async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
   const hasBody = options.body !== undefined
+
+  if (USE_MOCKS) {
+    // Serve from the in-memory mock backend. Imported lazily to avoid a static
+    // import cycle (mocks.ts imports ApiError from this module).
+    const { handleMock } = await import("@/lib/mocks")
+    // Simulate a little network latency so loading states are visible.
+    await new Promise((r) => setTimeout(r, 220))
+    if (options.signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError")
+    }
+    return handleMock(method, path, { query: options.query, body: options.body }) as T
+  }
+
   let response: Response
 
   try {
@@ -131,6 +150,7 @@ async function request<T>(method: string, path: string, options: RequestOptions 
       body: hasBody ? JSON.stringify(options.body) : undefined,
       signal: options.signal,
       cache: "no-store",
+      credentials: "include",
     })
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err

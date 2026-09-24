@@ -23,7 +23,7 @@ type ProductoFormProps = {
 }
 
 type FormState = {
-  id_categoria: string
+  idCategoria: string
   nombre: string
   descripcion: string
   sku: string
@@ -32,7 +32,7 @@ type FormState = {
 }
 
 type Errors = {
-  id_categoria?: string
+  idCategoria?: string
   nombre?: string
   descripcion?: string
   sku?: string
@@ -40,7 +40,7 @@ type Errors = {
 }
 
 const emptyForm: FormState = {
-  id_categoria: "",
+  idCategoria: "",
   nombre: "",
   descripcion: "",
   sku: "",
@@ -71,7 +71,7 @@ export function ProductoForm({
     setSubmitting(false)
     if (producto) {
       setForm({
-        id_categoria: producto.categoria?.id ?? "",
+        idCategoria: producto.idCategoria ?? "",
         nombre: producto.nombre ?? "",
         descripcion: producto.descripcion ?? "",
         sku: producto.sku ?? "",
@@ -85,7 +85,7 @@ export function ProductoForm({
 
   function validate(): boolean {
     const next: Errors = {}
-    if (!form.id_categoria) next.id_categoria = "Selecciona una categoría."
+    if (!form.idCategoria) next.idCategoria = "Selecciona una categoría."
     if (!form.nombre.trim()) next.nombre = "El nombre es obligatorio."
     else if (form.nombre.trim().length < 2) next.nombre = "El nombre es demasiado corto."
     if (!form.descripcion.trim()) next.descripcion = "La descripción es obligatoria."
@@ -106,26 +106,20 @@ export function ProductoForm({
 
     setSubmitting(true)
     try {
+      const payload = {
+        idCategoria: form.idCategoria,
+        nombre: form.nombre.trim(),
+        descripcion: form.descripcion.trim(),
+        sku: form.sku.trim(),
+        precio: Number(form.precio),
+        activo: form.activo,
+      }
       if (isEdit && producto) {
         // ActualizarProductoDto — includes precio.
-        await onUpdate(producto.id, {
-          id_categoria: form.id_categoria,
-          nombre: form.nombre.trim(),
-          descripcion: form.descripcion.trim(),
-          sku: form.sku.trim(),
-          precio: Number(form.precio),
-          activo: form.activo,
-        })
+        await onUpdate(producto.id, payload)
       } else {
         // CrearProductoDto — includes precio.
-        await onCreate({
-          id_categoria: form.id_categoria,
-          nombre: form.nombre.trim(),
-          descripcion: form.descripcion.trim(),
-          sku: form.sku.trim(),
-          precio: Number(form.precio),
-          activo: form.activo,
-        })
+        await onCreate(payload)
       }
       onClose()
     } catch {
@@ -173,21 +167,21 @@ export function ProductoForm({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="id_categoria" className="text-sm font-medium text-foreground">
+          <label htmlFor="idCategoria" className="text-sm font-medium text-foreground">
             Categoría
           </label>
           <select
-            id="id_categoria"
-            value={form.id_categoria}
-            onChange={(e) => setForm((f) => ({ ...f, id_categoria: e.target.value }))}
-            aria-invalid={!!errors.id_categoria}
+            id="idCategoria"
+            value={form.idCategoria}
+            onChange={(e) => setForm((f) => ({ ...f, idCategoria: e.target.value }))}
+            aria-invalid={!!errors.idCategoria}
             disabled={categoriasLoading}
             className={cn(
               "flex h-9 w-full min-w-0 rounded-lg border border-border bg-background px-3 py-1 text-sm text-foreground shadow-xs transition-colors outline-none",
               "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40",
               "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
               "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20",
-              !form.id_categoria && "text-muted-foreground",
+              !form.idCategoria && "text-muted-foreground",
             )}
           >
             <option value="" disabled>
@@ -199,8 +193,8 @@ export function ProductoForm({
               </option>
             ))}
           </select>
-          {errors.id_categoria ? (
-            <p className="text-xs text-destructive">{errors.id_categoria}</p>
+          {errors.idCategoria ? (
+            <p className="text-xs text-destructive">{errors.idCategoria}</p>
           ) : null}
         </div>
 

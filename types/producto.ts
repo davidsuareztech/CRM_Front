@@ -1,84 +1,71 @@
-import type { Categoria } from "@/types/categoria"
-
 /**
- * Producto response shape — matches the backend `ProductoDto`.
+ * Producto response shape — matches the backend `ProductoDto` exactly (camelCase).
  *
- * The category arrives as a full object (`CategoriaResponseDto`), NOT as an id.
- * This is the shape we READ from the API.
+ * The category is NOT nested as an object. The DTO only exposes the id and,
+ * optionally, a denormalized name — resolve the full category from the
+ * categorías list already loaded by the page when you need more than the name.
  */
 export type Producto = {
   id: string
-  categoria: Categoria
   nombre: string
-  descripcion: string
   sku: string
+  descripcion: string
   precio: number
   activo: boolean
+  idCategoria?: string
+  nombreCategoria?: string
+  fechaActualizacion?: string
 }
 
 /**
  * Payload for POST /productos — matches the backend `CrearProductoDto`.
- *
- * The category is sent ONLY as its UUID (`id_categoria`). `precio` IS included.
- * The JSON must be exactly: { id_categoria, nombre, descripcion, sku, precio, activo }
+ * JSON must be exactly: { nombre, sku, descripcion, precio, activo, idCategoria }
  */
 export type CrearProductoRequest = {
-  id_categoria: string
   nombre: string
-  descripcion: string
   sku: string
+  descripcion: string
   precio: number
   activo: boolean
+  idCategoria: string
 }
 
 /**
  * Payload for PUT /productos/{id} — matches the backend `ActualizarProductoDto`.
- *
- * The category is sent ONLY as its UUID (`id_categoria`). `precio` IS part of
- * the update payload and can be edited from the frontend.
- * The JSON must be exactly: { id_categoria, nombre, descripcion, sku, precio, activo }
+ * JSON must be exactly: { nombre, sku, descripcion, precio, activo, idCategoria }
  */
 export type ActualizarProductoRequest = {
-  id_categoria: string
   nombre: string
-  descripcion: string
   sku: string
+  descripcion: string
   precio: number
   activo: boolean
+  idCategoria: string
 }
 
 export type ProductoFilter = "todos" | "activos" | "inactivos"
 
-/** Which price criterion (if any) is currently active. */
-export type PrecioMode = "none" | "exacto" | "mayor" | "menor" | "rango"
-
 /**
- * Full filter state for the Productos admin page. Every field maps to a real
- * backend capability; combinations that the backend cannot resolve in a single
- * request are resolved on the client from real API data.
+ * Filter state for the Productos admin page. Per spec, GET /productos loads
+ * the whole catalog once and every filter below is applied on the client.
  */
 export type ProductoFilters = {
-  nombre: string
-  sku: string
+  texto: string // matches nombre OR sku
   categoriaId: string // "" = todas
   estado: ProductoFilter
-  precioMode: PrecioMode
-  precioExacto: string
-  precioMayor: string
-  precioMenor: string
   precioMin: string
   precioMax: string
 }
 
 export const EMPTY_PRODUCTO_FILTERS: ProductoFilters = {
-  nombre: "",
-  sku: "",
+  texto: "",
   categoriaId: "",
   estado: "todos",
-  precioMode: "none",
-  precioExacto: "",
-  precioMayor: "",
-  precioMenor: "",
   precioMin: "",
   precioMax: "",
 }
+
+export type ProductoSortField = "nombre" | "sku" | "precio" | "fechaActualizacion"
+export type SortDirection = "asc" | "desc"
+
+export const PAGE_SIZE = 10

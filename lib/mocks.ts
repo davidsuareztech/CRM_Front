@@ -64,22 +64,42 @@ function cat(id: string): Categoria {
   return categorias.find((c) => c.id === id)!
 }
 
+function nowIso(daysAgo: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - daysAgo)
+  return d.toISOString()
+}
+
+function makeProducto(idCategoria: string, nombre: string, descripcion: string, sku: string, precio: number, activo: boolean, daysAgo: number): Producto {
+  return {
+    id: uuid(),
+    idCategoria,
+    nombreCategoria: cat(idCategoria).nombre,
+    nombre,
+    descripcion,
+    sku,
+    precio,
+    activo,
+    fechaActualizacion: nowIso(daysAgo),
+  }
+}
+
 let productos: Producto[] = [
-  { id: uuid(), categoria: cat(catIds.bebidas), nombre: "Gaseosa Cola 1.5L", descripcion: "Botella retornable de 1.5 litros.", sku: "BEB-COLA-15", precio: 4500, activo: true },
-  { id: uuid(), categoria: cat(catIds.bebidas), nombre: "Agua sin gas 600ml", descripcion: "Botella individual de agua natural.", sku: "BEB-AGUA-600", precio: 1800, activo: true },
-  { id: uuid(), categoria: cat(catIds.bebidas), nombre: "Jugo de naranja 1L", descripcion: "Jugo natural sin azúcar añadida.", sku: "BEB-JUGO-NAR", precio: 6200, activo: false },
-  { id: uuid(), categoria: cat(catIds.alimentos), nombre: "Arroz premium 1kg", descripcion: "Arroz blanco grano largo.", sku: "ALI-ARROZ-1K", precio: 5200, activo: true },
-  { id: uuid(), categoria: cat(catIds.alimentos), nombre: "Aceite vegetal 1L", descripcion: "Aceite de girasol para cocina.", sku: "ALI-ACEITE-1L", precio: 9800, activo: true },
-  { id: uuid(), categoria: cat(catIds.alimentos), nombre: "Pasta espagueti 500g", descripcion: "Pasta de sémola de trigo.", sku: "ALI-PASTA-500", precio: 3100, activo: true },
-  { id: uuid(), categoria: cat(catIds.aseo), nombre: "Detergente líquido 3L", descripcion: "Detergente concentrado para ropa.", sku: "ASE-DET-3L", precio: 24500, activo: true },
-  { id: uuid(), categoria: cat(catIds.aseo), nombre: "Jabón de manos 250ml", descripcion: "Jabón líquido antibacterial.", sku: "ASE-JAB-250", precio: 7300, activo: false },
-  { id: uuid(), categoria: cat(catIds.papeleria), nombre: "Cuaderno cuadriculado 100h", descripcion: "Cuaderno cosido tamaño carta.", sku: "PAP-CUAD-100", precio: 5900, activo: true },
-  { id: uuid(), categoria: cat(catIds.papeleria), nombre: "Esfero negro x12", descripcion: "Caja de esferos punta media.", sku: "PAP-ESF-12", precio: 12800, activo: true },
-  { id: uuid(), categoria: cat(catIds.tecnologia), nombre: "Mouse inalámbrico", descripcion: "Mouse óptico 2.4GHz con receptor USB.", sku: "TEC-MOUSE-INA", precio: 38900, activo: true },
-  { id: uuid(), categoria: cat(catIds.tecnologia), nombre: "Teclado mecánico", descripcion: "Teclado retroiluminado switches azules.", sku: "TEC-TECL-MEC", precio: 129900, activo: false },
-  { id: uuid(), categoria: cat(catIds.hogar), nombre: "Set de vasos x6", descripcion: "Vasos de vidrio templado 300ml.", sku: "HOG-VASO-6", precio: 21500, activo: true },
-  { id: uuid(), categoria: cat(catIds.hogar), nombre: "Olla antiadherente 24cm", descripcion: "Olla con recubrimiento cerámico.", sku: "HOG-OLLA-24", precio: 65400, activo: true },
-  { id: uuid(), categoria: cat(catIds.hogar), nombre: "Toalla de baño", descripcion: "Toalla de algodón 100% absorbente.", sku: "HOG-TOAL-BA", precio: 28900, activo: true },
+  makeProducto(catIds.bebidas, "Gaseosa Cola 1.5L", "Botella retornable de 1.5 litros.", "BEB-COLA-15", 4500, true, 2),
+  makeProducto(catIds.bebidas, "Agua sin gas 600ml", "Botella individual de agua natural.", "BEB-AGUA-600", 1800, true, 5),
+  makeProducto(catIds.bebidas, "Jugo de naranja 1L", "Jugo natural sin azúcar añadida.", "BEB-JUGO-NAR", 6200, false, 9),
+  makeProducto(catIds.alimentos, "Arroz premium 1kg", "Arroz blanco grano largo.", "ALI-ARROZ-1K", 5200, true, 1),
+  makeProducto(catIds.alimentos, "Aceite vegetal 1L", "Aceite de girasol para cocina.", "ALI-ACEITE-1L", 9800, true, 12),
+  makeProducto(catIds.alimentos, "Pasta espagueti 500g", "Pasta de sémola de trigo.", "ALI-PASTA-500", 3100, true, 4),
+  makeProducto(catIds.aseo, "Detergente líquido 3L", "Detergente concentrado para ropa.", "ASE-DET-3L", 24500, true, 3),
+  makeProducto(catIds.aseo, "Jabón de manos 250ml", "Jabón líquido antibacterial.", "ASE-JAB-250", 7300, false, 15),
+  makeProducto(catIds.papeleria, "Cuaderno cuadriculado 100h", "Cuaderno cosido tamaño carta.", "PAP-CUAD-100", 5900, true, 7),
+  makeProducto(catIds.papeleria, "Esfero negro x12", "Caja de esferos punta media.", "PAP-ESF-12", 12800, true, 6),
+  makeProducto(catIds.tecnologia, "Mouse inalámbrico", "Mouse óptico 2.4GHz con receptor USB.", "TEC-MOUSE-INA", 38900, true, 8),
+  makeProducto(catIds.tecnologia, "Teclado mecánico", "Teclado retroiluminado switches azules.", "TEC-TECL-MEC", 129900, false, 20),
+  makeProducto(catIds.hogar, "Set de vasos x6", "Vasos de vidrio templado 300ml.", "HOG-VASO-6", 21500, true, 10),
+  makeProducto(catIds.hogar, "Olla antiadherente 24cm", "Olla con recubrimiento cerámico.", "HOG-OLLA-24", 65400, true, 11),
+  makeProducto(catIds.hogar, "Toalla de baño", "Toalla de algodón 100% absorbente.", "HOG-TOAL-BA", 28900, true, 14),
 ]
 
 // ---- Helpers ----------------------------------------------------------------
@@ -125,6 +145,15 @@ export function handleMock(method: string, rawPath: string, ctx: MockCtx = {}): 
     const { correo, codigo } = (ctx.body as any) ?? {}
     if (!codigo || String(codigo).length !== 6) badRequest("El código debe tener 6 dígitos.")
     if (String(codigo) !== MOCK_CODIGO) badRequest("El código ingresado es incorrecto o ha expirado.")
+    // No empresa registrada con este correo -> el login ofrece crearla inline.
+    if (norm(String(correo ?? "")) !== norm(empresa.correo)) {
+      return {
+        mensaje: "Código verificado. No encontramos una empresa registrada con este correo.",
+        empresaId: null,
+        nombreEmpresa: "",
+        correo: correo ?? "",
+      }
+    }
     return {
       mensaje: "Empresa validada correctamente.",
       empresaId: empresa.id,
@@ -219,36 +248,17 @@ export function handleMock(method: string, rawPath: string, ctx: MockCtx = {}): 
     // estado
     if (path === "/productos/activo" && M === "GET") return productos.filter((p) => p.activo)
 
-    // precio
-    if (path === "/productos/precio/mayor" && M === "GET") {
-      const precio = Number(q.precio ?? 0)
-      return productos.filter((p) => p.precio > precio)
-    }
-    if (path === "/productos/precio/menor" && M === "GET") {
-      const precio = Number(q.precio ?? 0)
-      return productos.filter((p) => p.precio < precio)
-    }
+    // precio — rango únicamente (el resto de endpoints de precio no existen en el backend)
     if (path === "/productos/rango/precio" && M === "GET") {
       const min = Number(q.minimo ?? 0)
       const max = Number(q.maximo ?? Number.MAX_SAFE_INTEGER)
       return productos.filter((p) => p.precio >= min && p.precio <= max)
-    }
-    if (segments[1] === "precio" && segments.length === 3 && M === "GET") {
-      const precio = Number(segments[2])
-      return productos.filter((p) => p.precio === precio)
     }
 
     // búsqueda por nombre contiene
     if (path === "/productos/nombre/contiene" && M === "GET") {
       const nombre = norm(String(q.nombre ?? ""))
       return productos.filter((p) => norm(p.nombre).includes(nombre))
-    }
-    // búsqueda por nombre exacto: /productos/nombre/{nombre}
-    if (segments[1] === "nombre" && segments.length === 3 && M === "GET") {
-      const nombre = decodeURIComponent(segments[2])
-      const found = productos.find((p) => norm(p.nombre) === norm(nombre))
-      if (!found) notFound(`No se encontró un producto con el nombre: ${nombre}`)
-      return { ...found }
     }
     // por sku: /productos/sku/{sku}
     if (segments[1] === "sku" && segments.length === 3 && M === "GET") {
@@ -264,7 +274,7 @@ export function handleMock(method: string, rawPath: string, ctx: MockCtx = {}): 
         notFound("La categoría no existe en la empresa actual")
       }
       const onlyActive = segments[3] === "activos"
-      return productos.filter((p) => p.categoria.id === idCategoria && (!onlyActive || p.activo))
+      return productos.filter((p) => p.idCategoria === idCategoria && (!onlyActive || p.activo))
     }
 
     // CRUD
@@ -289,8 +299,8 @@ export function handleMock(method: string, rawPath: string, ctx: MockCtx = {}): 
 
 function crearProducto(body: unknown): Producto {
   const b = (body as any) ?? {}
-  const categoria = categorias.find((c) => c.id === b.id_categoria)
-  if (!categoria) notFound(`No existe la categoría con id: ${b.id_categoria}`)
+  const categoria = categorias.find((c) => c.id === b.idCategoria)
+  if (!categoria) notFound(`No existe la categoría con id: ${b.idCategoria}`)
   if (!b.nombre || !String(b.nombre).trim()) badRequest("El nombre del producto es obligatorio.")
   if (!b.sku || !String(b.sku).trim()) badRequest("El SKU del producto es obligatorio.")
   if (productos.some((p) => norm(p.sku) === norm(b.sku))) {
@@ -301,12 +311,14 @@ function crearProducto(body: unknown): Producto {
   }
   const nuevo: Producto = {
     id: uuid(),
-    categoria,
+    idCategoria: categoria.id,
+    nombreCategoria: categoria.nombre,
     nombre: b.nombre,
     descripcion: b.descripcion ?? "",
     sku: b.sku,
     precio: Number(b.precio ?? 0),
     activo: typeof b.activo === "boolean" ? b.activo : true,
+    fechaActualizacion: new Date().toISOString(),
   }
   productos = [nuevo, ...productos]
   return { ...nuevo }
@@ -316,19 +328,21 @@ function actualizarProducto(id: string, body: unknown): Producto {
   const b = (body as any) ?? {}
   const existing = productos.find((p) => p.id === id)
   if (!existing) notFound(`Producto no encontrado con id: ${id}`)
-  const categoria = categorias.find((c) => c.id === b.id_categoria)
-  if (!categoria) notFound(`Categoría no encontrada con id: ${b.id_categoria}`)
+  const categoria = categorias.find((c) => c.id === b.idCategoria)
+  if (!categoria) notFound(`Categoría no encontrada con id: ${b.idCategoria}`)
   if (norm(existing.sku) !== norm(b.sku) && productos.some((p) => p.id !== id && norm(p.sku) === norm(b.sku))) {
     badRequest(`Ya existe otro producto con el SKU: ${b.sku}`)
   }
   if (norm(existing.nombre) !== norm(b.nombre) && productos.some((p) => p.id !== id && norm(p.nombre) === norm(b.nombre))) {
     badRequest(`Ya existe otro producto con el nombre: ${b.nombre}`)
   }
-  existing.categoria = categoria
+  existing.idCategoria = categoria.id
+  existing.nombreCategoria = categoria.nombre
   existing.nombre = b.nombre
   existing.descripcion = b.descripcion ?? ""
   existing.sku = b.sku
   existing.precio = Number(b.precio ?? existing.precio)
   existing.activo = typeof b.activo === "boolean" ? b.activo : existing.activo
+  existing.fechaActualizacion = new Date().toISOString()
   return { ...existing }
 }

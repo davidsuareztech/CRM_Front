@@ -42,10 +42,14 @@ export type CrearEmpresaRequest = {
 /**
  * Result of POST /home/verificar-codigo — matches `EmpresaValidadaDto`.
  * This is what establishes the multiempresa session on the client.
+ *
+ * `empresaId` is null when the verified correo has no empresa registered yet —
+ * the login flow then offers to create one inline (POST /empresa) before
+ * establishing the session.
  */
 export type EmpresaValidada = {
   mensaje: string
-  empresaId: string
+  empresaId: string | null
   nombreEmpresa: string
   correo: string
 }

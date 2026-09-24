@@ -10,7 +10,6 @@ import {
   CircleSlash,
   TriangleAlert,
   Plus,
-  Building2,
   RefreshCw,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -19,7 +18,6 @@ import { Badge } from "@/components/ui/badge"
 import { useAuthorization } from "@/auth/authorization"
 import { productoService } from "@/services/productoService"
 import { categoriaService } from "@/services/categoriaService"
-import { CrearEmpresaModal } from "@/components/empresa/CrearEmpresaModal"
 import type { Producto } from "@/types/producto"
 import type { Categoria } from "@/types/categoria"
 
@@ -47,11 +45,9 @@ export function HomeView() {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [productosState, setProductosState] = useState<LoadState>("loading")
   const [categoriasState, setCategoriasState] = useState<LoadState>("loading")
-  const [crearEmpresaOpen, setCrearEmpresaOpen] = useState(false)
 
   const canReadProductos = hasPermission("PRODUCTOS_READ")
   const canReadCategorias = hasPermission("CATEGORIAS_READ")
-  const canCreateEmpresa = hasPermission("EMPRESA_CREATE")
 
   const load = useCallback(
     (signal?: AbortSignal) => {
@@ -106,9 +102,9 @@ export function HomeView() {
     const map = new Map<string, { nombre: string; total: number; activos: number }>()
     for (const c of categorias) map.set(c.id, { nombre: c.nombre, total: 0, activos: 0 })
     for (const p of productos) {
-      const id = p.categoria?.id
+      const id = p.idCategoria
       if (!id) continue
-      const entry = map.get(id) ?? { nombre: p.categoria?.nombre ?? "Sin categoría", total: 0, activos: 0 }
+      const entry = map.get(id) ?? { nombre: p.nombreCategoria ?? "Sin categoría", total: 0, activos: 0 }
       entry.total += 1
       if (p.activo) entry.activos += 1
       map.set(id, entry)
@@ -250,9 +246,6 @@ export function HomeView() {
           {hasPermission("CATEGORIAS_CREATE") ? (
             <QuickAction href="/categorias?nuevo=1" icon={Plus} label="Crear categoría" accent />
           ) : null}
-          {canCreateEmpresa ? (
-            <QuickActionButton onClick={() => setCrearEmpresaOpen(true)} icon={Building2} label="Crear empresa" accent />
-          ) : null}
         </div>
       </div>
 
@@ -299,10 +292,6 @@ export function HomeView() {
             ))}
           </ul>
         </ChartCard>
-      ) : null}
-
-      {canCreateEmpresa ? (
-        <CrearEmpresaModal open={crearEmpresaOpen} onClose={() => setCrearEmpresaOpen(false)} />
       ) : null}
     </div>
   )
@@ -524,38 +513,5 @@ function QuickAction({
       <span className="flex-1 text-sm font-medium text-foreground">{label}</span>
       <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </Link>
-  )
-}
-
-function QuickActionButton({
-  onClick,
-  icon: Icon,
-  label,
-  accent,
-}: {
-  onClick: () => void
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  accent?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left transition-colors hover:border-ring/40 hover:bg-muted/40"
-    >
-      <div
-        className={cn(
-          "flex size-9 items-center justify-center rounded-lg transition-colors",
-          accent
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-muted-foreground group-hover:text-foreground",
-        )}
-      >
-        <Icon className="size-4.5" />
-      </div>
-      <span className="flex-1 text-sm font-medium text-foreground">{label}</span>
-      <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-    </button>
   )
 }

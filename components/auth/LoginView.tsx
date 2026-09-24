@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Building2, Mail, ShieldCheck, ArrowLeft, Loader2 } from "lucide-react"
+import { Building2, Mail, ShieldCheck, ArrowLeft, Loader2, Phone, FileDigit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/toast"
 import { useSession } from "@/context/session-context"
 import { homeService } from "@/services/homeService"
+import { empresaService } from "@/services/empresaService"
 import { ApiError } from "@/lib/api"
+import type { CrearEmpresaRequest } from "@/types/empresa"
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof ApiError) return err.message
@@ -16,10 +18,13 @@ function getErrorMessage(err: unknown): string {
   return "Ocurrió un error inesperado."
 }
 
-type Step = "correo" | "codigo"
+type Step = "correo" | "codigo" | "crear-empresa"
 
 const CODE_LENGTH = 6
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+type NuevaEmpresaForm = { nombre: string; numero: string; nit: string }
+const EMPTY_NUEVA_EMPRESA: NuevaEmpresaForm = { nombre: "", numero: "", nit: "" }
 
 export function LoginView() {
   const router = useRouter()
@@ -32,6 +37,11 @@ export function LoginView() {
   const [sending, setSending] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // "Crear empresa" step — shown when the verified correo has no empresa yet.
+  const [nuevaEmpresa, setNuevaEmpresa] = useState<NuevaEmpresaForm>(EMPTY_NUEVA_EMPRESA)
+  const [nuevaEmpresaErrors, setNuevaEmpresaErrors] = useState<Partial<Record<keyof NuevaEmpresaForm, string>>>({})
+  const [creandoEmpresa, setCreandoEmpresa] = useState(false)
 
   const inputsRef = useRef<Array<HTMLInputElement | null>>([])
 
@@ -68,6 +78,14 @@ export function LoginView() {
     setVerifying(true)
     try {
       const data = await homeService.verificarCodigo(correo.trim(), code)
+      if (!data.empresaId) {
+        // Correo verificado, pero sin empresa asociada — ofrecer crearla.
+        toast.success("Código verificado", "No encontramos una empresa con este correo. Créala para continuar.")
+        setNuevaEmpresa(EMPTY_NUEVA_EMPRESA)
+        setNuevaEmpresaErrors({})
+        setStep("crear-empresa")
+        return
+      }
       login({ empresaId: data.empresaId, nombreEmpresa: data.nombreEmpresa, correo: data.correo })
       toast.success("Bienvenido", `Sesión iniciada en ${data.nombreEmpresa}.`)
       router.replace("/dashboard")
@@ -79,6 +97,43 @@ export function LoginView() {
       setTimeout(() => inputsRef.current[0]?.focus(), 50)
     } finally {
       setVerifying(false)
+    }
+  }
+
+  function validateNuevaEmpresa(f: NuevaEmpresaForm): Partial<Record<keyof NuevaEmpresaForm, string>> {
+    const errs: Partial<Record<keyof NuevaEmpresaForm, string>> = {}
+    if (!f.nombre.trim()) errs.nombre = "El nombre de la empresa es obligatorio."
+    if (!f.numero.trim()) errs.numero = "El teléfono es obligatorio."
+    if (!f.nit.trim()) errs.nit = "El NIT es obligatorio."
+    return errs
+  }
+
+  async function handleCrearEmpresa(e: React.FormEvent) {
+    e.preventDefault()
+    if (creandoEmpresa) return
+    const errs = validateNuevaEmpresa(nuevaEmpresa)
+    setNuevaEmpresaErrors(errs)
+    if (Object.keys(errs).length > 0) return
+
+    const payload: CrearEmpresaRequest = {
+      nombre: nuevaEmpresa.nombre.trim(),
+      correo: correo.trim(),
+      numero: nuevaEmpresa.numero.trim(),
+      nit: nuevaEmpresa.nit.trim(),
+      activo: true,
+    }
+
+    setCreandoEmpresa(true)
+    try {
+      const creada = await empresaService.crearEmpresa(payload)
+      login({ empresaId: creada.id, nombreEmpresa: creada.nombre, correo: creada.correo })
+      toast.success("Empresa creada", `"${creada.nombre}" se registró correctamente. Bienvenido.`)
+      router.replace("/dashboard")
+    } catch (err) {
+      const msg = getErrorMessage(err)
+      toast.error("No se pudo crear la empresa", msg)
+    } finally {
+      setCreandoEmpresa(false)
     }
   }
 
@@ -118,6 +173,13 @@ export function LoginView() {
 
   const code = digits.join("")
 
+  const headline =
+    step === "correo"
+      ? "Ingresa el correo de tu empresa para recibir un código de verificación."
+      : step === "codigo"
+        ? "Escribe el código de 6 dígitos que enviamos a tu correo."
+        : "Registra los datos de tu empresa para continuar."
+
   return (
     <main className="relative flex min-h-svh items-center justify-center overflow-hidden bg-background px-4 py-10">
       {/* Decorative brand panel background */}
@@ -131,13 +193,9 @@ export function LoginView() {
             <Building2 className="size-6" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground text-balance">
-            Acceso a tu empresa
+            {step === "crear-empresa" ? "Crea tu empresa" : "Acceso a tu empresa"}
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground text-pretty">
-            {step === "correo"
-              ? "Ingresa el correo de tu empresa para recibir un código de verificación."
-              : "Escribe el código de 6 dígitos que enviamos a tu correo."}
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground text-pretty">{headline}</p>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
@@ -180,7 +238,7 @@ export function LoginView() {
                 )}
               </Button>
             </form>
-          ) : (
+          ) : step === "codigo" ? (
             <div className="flex flex-col gap-5">
               <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
                 <ShieldCheck className="size-4 shrink-0 text-primary" />
@@ -254,6 +312,105 @@ export function LoginView() {
                 </button>
               </div>
             </div>
+          ) : (
+            <form onSubmit={handleCrearEmpresa} className="flex flex-col gap-5" noValidate>
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+                <ShieldCheck className="size-4 shrink-0 text-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Correo verificado: <span className="font-medium text-foreground">{correo}</span>
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="nueva-nombre" className="text-sm font-medium text-foreground">
+                  Nombre de la empresa
+                </label>
+                <div className="relative">
+                  <Building2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="nueva-nombre"
+                    className="h-11 pl-9"
+                    value={nuevaEmpresa.nombre}
+                    onChange={(e) => setNuevaEmpresa((f) => ({ ...f, nombre: e.target.value }))}
+                    placeholder="Nombre de tu empresa"
+                    aria-invalid={!!nuevaEmpresaErrors.nombre}
+                    disabled={creandoEmpresa}
+                    autoFocus
+                  />
+                </div>
+                {nuevaEmpresaErrors.nombre ? (
+                  <p className="text-sm text-destructive">{nuevaEmpresaErrors.nombre}</p>
+                ) : null}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="nueva-numero" className="text-sm font-medium text-foreground">
+                    Teléfono
+                  </label>
+                  <div className="relative">
+                    <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="nueva-numero"
+                      className="h-11 pl-9"
+                      value={nuevaEmpresa.numero}
+                      onChange={(e) => setNuevaEmpresa((f) => ({ ...f, numero: e.target.value }))}
+                      placeholder="Número de contacto"
+                      aria-invalid={!!nuevaEmpresaErrors.numero}
+                      disabled={creandoEmpresa}
+                    />
+                  </div>
+                  {nuevaEmpresaErrors.numero ? (
+                    <p className="text-sm text-destructive">{nuevaEmpresaErrors.numero}</p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="nueva-nit" className="text-sm font-medium text-foreground">
+                    NIT
+                  </label>
+                  <div className="relative">
+                    <FileDigit className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="nueva-nit"
+                      className="h-11 pl-9"
+                      value={nuevaEmpresa.nit}
+                      onChange={(e) => setNuevaEmpresa((f) => ({ ...f, nit: e.target.value }))}
+                      placeholder="NIT de la empresa"
+                      aria-invalid={!!nuevaEmpresaErrors.nit}
+                      disabled={creandoEmpresa}
+                    />
+                  </div>
+                  {nuevaEmpresaErrors.nit ? (
+                    <p className="text-sm text-destructive">{nuevaEmpresaErrors.nit}</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <Button type="submit" size="lg" className="h-11 w-full" disabled={creandoEmpresa}>
+                {creandoEmpresa ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Creando empresa...
+                  </>
+                ) : (
+                  "Crear empresa e ingresar"
+                )}
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("correo")
+                  setError(null)
+                }}
+                className="inline-flex items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground"
+                disabled={creandoEmpresa}
+              >
+                <ArrowLeft className="size-4" />
+                Cambiar correo
+              </button>
+            </form>
           )}
         </div>
 

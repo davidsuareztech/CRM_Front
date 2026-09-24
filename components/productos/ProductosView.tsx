@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PermissionGate } from "@/components/permission-gate"
@@ -12,10 +12,12 @@ import type { Categoria } from "@/types/categoria"
 import type {
   Producto,
   ProductoFilters as Filters,
+  ProductoSortField,
+  SortDirection,
   CrearProductoRequest,
   ActualizarProductoRequest,
 } from "@/types/producto"
-import { EMPTY_PRODUCTO_FILTERS } from "@/types/producto"
+import { EMPTY_PRODUCTO_FILTERS, PAGE_SIZE } from "@/types/producto"
 import { ProductoStats } from "./ProductoStats"
 import { ProductoFilters } from "./ProductoFilters"
 import { ProductoTable } from "./ProductoTable"
@@ -33,90 +35,49 @@ function isValidNumber(value: string): boolean {
   return !Number.isNaN(n) && n >= 0
 }
 
-/**
- * The backend has NO endpoint that combines several filters in one request.
- * Strategy: pick the single most selective active filter to run SERVER-SIDE
- * (using its dedicated real endpoint), then refine the remaining filters
- * CLIENT-SIDE over the real data returned. This uses each real endpoint while
- * still supporting any combination, and issues exactly one request per change.
- */
-async function fetchBaseProductos(f: Filters, signal: AbortSignal): Promise<Producto[]> {
-  // 1) SKU is the most selective — use /productos/sku/{sku}
-  if (f.sku.trim()) {
-    return productoService.buscarPorSku(f.sku.trim(), signal)
-  }
-  // 2) Categoría — has a dedicated "activos" variant we can leverage
-  if (f.categoriaId) {
-    return f.estado === "activos"
-      ? productoService.getPorCategoriaActivos(f.categoriaId, signal)
-      : productoService.getPorCategoria(f.categoriaId, signal)
-  }
-  // 3) Precio
-  if (f.precioMode === "exacto" && isValidNumber(f.precioExacto)) {
-    return productoService.getPorPrecioExacto(Number(f.precioExacto), signal)
-  }
-  if (f.precioMode === "mayor" && isValidNumber(f.precioMayor)) {
-    return productoService.getPorPrecioMayor(Number(f.precioMayor), signal)
-  }
-  if (f.precioMode === "menor" && isValidNumber(f.precioMenor)) {
-    return productoService.getPorPrecioMenor(Number(f.precioMenor), signal)
-  }
-  if (f.precioMode === "rango" && isValidNumber(f.precioMin) && isValidNumber(f.precioMax)) {
-    return productoService.getPorRangoPrecio(Number(f.precioMin), Number(f.precioMax), signal)
-  }
-  // 4) Nombre — /productos/nombre/contiene
-  if (f.nombre.trim()) {
-    return productoService.buscarPorNombreContiene(f.nombre.trim(), signal)
-  }
-  // 5) Estado activos has its own endpoint
-  if (f.estado === "activos") {
-    return productoService.getProductosActivos(signal)
-  }
-  // 6) Everything else / inactivos (no backend endpoint) — full list
-  return productoService.getProductos(signal)
+function hasActiveFilters(f: Filters): boolean {
+  return (
+    f.texto.trim() !== "" ||
+    f.categoriaId !== "" ||
+    f.estado !== "todos" ||
+    f.precioMin.trim() !== "" ||
+    f.precioMax.trim() !== ""
+  )
 }
 
-/** Refine the server result with ALL active filters (idempotent, in-memory). */
+/** Per spec: GET /productos loads the whole catalog once; every filter,
+ *  sort and pagination step below runs entirely on the client. */
 function applyClientFilters(list: Producto[], f: Filters): Producto[] {
-  const nombre = f.nombre.trim().toLowerCase()
-  const sku = f.sku.trim().toLowerCase()
+  const texto = f.texto.trim().toLowerCase()
 
   return list.filter((p) => {
-    if (nombre && !p.nombre?.toLowerCase().includes(nombre)) return false
-    if (sku && !(p.sku ?? "").toLowerCase().includes(sku)) return false
-    if (f.categoriaId && p.categoria?.id !== f.categoriaId) return false
+    if (texto) {
+      const matchesNombre = p.nombre?.toLowerCase().includes(texto)
+      const matchesSku = (p.sku ?? "").toLowerCase().includes(texto)
+      if (!matchesNombre && !matchesSku) return false
+    }
+    if (f.categoriaId && p.idCategoria !== f.categoriaId) return false
     if (f.estado === "activos" && !p.activo) return false
     if (f.estado === "inactivos" && p.activo) return false
-
-    if (f.precioMode === "exacto" && isValidNumber(f.precioExacto) && p.precio !== Number(f.precioExacto)) {
-      return false
-    }
-    if (f.precioMode === "mayor" && isValidNumber(f.precioMayor) && !(p.precio > Number(f.precioMayor))) {
-      return false
-    }
-    if (f.precioMode === "menor" && isValidNumber(f.precioMenor) && !(p.precio < Number(f.precioMenor))) {
-      return false
-    }
-    if (
-      f.precioMode === "rango" &&
-      isValidNumber(f.precioMin) &&
-      isValidNumber(f.precioMax) &&
-      !(p.precio >= Number(f.precioMin) && p.precio <= Number(f.precioMax))
-    ) {
-      return false
-    }
+    if (isValidNumber(f.precioMin) && !(p.precio >= Number(f.precioMin))) return false
+    if (isValidNumber(f.precioMax) && !(p.precio <= Number(f.precioMax))) return false
     return true
   })
 }
 
-function hasActiveFilters(f: Filters): boolean {
-  return (
-    f.nombre.trim() !== "" ||
-    f.sku.trim() !== "" ||
-    f.categoriaId !== "" ||
-    f.estado !== "todos" ||
-    f.precioMode !== "none"
-  )
+function applySort(list: Producto[], field: ProductoSortField, direction: SortDirection): Producto[] {
+  const sorted = [...list].sort((a, b) => {
+    let cmp = 0
+    if (field === "precio") {
+      cmp = (a.precio ?? 0) - (b.precio ?? 0)
+    } else if (field === "fechaActualizacion") {
+      cmp = new Date(a.fechaActualizacion ?? 0).getTime() - new Date(b.fechaActualizacion ?? 0).getTime()
+    } else {
+      cmp = String(a[field] ?? "").localeCompare(String(b[field] ?? ""))
+    }
+    return direction === "asc" ? cmp : -cmp
+  })
+  return sorted
 }
 
 export function ProductosView() {
@@ -127,6 +88,9 @@ export function ProductosView() {
   const [error, setError] = useState<string | null>(null)
 
   const [filters, setFilters] = useState<Filters>(EMPTY_PRODUCTO_FILTERS)
+  const [sortField, setSortField] = useState<ProductoSortField>("nombre")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [page, setPage] = useState(1)
   const [reloadKey, setReloadKey] = useState(0)
 
   // Whole-catalog counts (independent of the active filters).
@@ -143,10 +107,7 @@ export function ProductosView() {
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const rangoError =
-    filters.precioMode === "rango" &&
-    isValidNumber(filters.precioMin) &&
-    isValidNumber(filters.precioMax) &&
-    Number(filters.precioMin) > Number(filters.precioMax)
+    isValidNumber(filters.precioMin) && isValidNumber(filters.precioMax) && Number(filters.precioMin) > Number(filters.precioMax)
       ? "El mínimo no puede ser mayor que el máximo."
       : null
 
@@ -182,38 +143,60 @@ export function ProductosView() {
     return () => controller.abort()
   }, [loadCounts, reloadKey])
 
-  // ---- Filtered list (debounced) ---------------------------------------
-  useEffect(() => {
-    if (rangoError) return // don't query with an invalid range
-    const controller = new AbortController()
-    const handle = setTimeout(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const base = await fetchBaseProductos(filters, controller.signal)
-        setProductos(applyClientFilters(base, filters))
-      } catch (err) {
+  // ---- Catálogo completo — se carga una sola vez (GET /productos) ------
+  const loadCatalogo = useCallback((signal?: AbortSignal) => {
+    setLoading(true)
+    setError(null)
+    productoService
+      .getProductos(signal)
+      .then((data) => setProductos(data))
+      .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return
         setError(errorMessage(err))
-      } finally {
-        setLoading(false)
-      }
-    }, 350)
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
-    return () => {
-      clearTimeout(handle)
-      controller.abort()
-    }
-  }, [filters, rangoError, reloadKey])
+  useEffect(() => {
+    const controller = new AbortController()
+    loadCatalogo(controller.signal)
+    return () => controller.abort()
+  }, [loadCatalogo, reloadKey])
+
+  // Filtros/orden/página se aplican en memoria sobre el catálogo cargado.
+  const filtered = useMemo(() => {
+    if (rangoError) return []
+    return applyClientFilters(productos, filters)
+  }, [productos, filters, rangoError])
+
+  const sorted = useMemo(() => applySort(filtered, sortField, sortDirection), [filtered, sortField, sortDirection])
+
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
+  const clampedPage = Math.min(page, pageCount)
+  const paginated = useMemo(
+    () => sorted.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE),
+    [sorted, clampedPage],
+  )
 
   const activeCategorias = useMemo(() => categorias.filter((c) => c.activo), [categorias])
 
   function patchFilters(patch: Partial<Filters>) {
     setFilters((prev) => ({ ...prev, ...patch }))
+    setPage(1)
   }
 
   function clearFilters() {
     setFilters(EMPTY_PRODUCTO_FILTERS)
+    setPage(1)
+  }
+
+  function handleSort(field: ProductoSortField) {
+    if (field === sortField) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setSortField(field)
+      setSortDirection("asc")
+    }
   }
 
   function refreshAll() {
@@ -278,7 +261,7 @@ export function ProductosView() {
     setProductos((prev) => prev.map((p) => (p.id === producto.id ? { ...p, activo: nextEstado } : p)))
     try {
       await productoService.actualizarProducto(producto.id, {
-        id_categoria: producto.categoria.id,
+        idCategoria: producto.idCategoria ?? "",
         nombre: producto.nombre,
         descripcion: producto.descripcion,
         sku: producto.sku,
@@ -342,17 +325,22 @@ export function ProductosView() {
           onClear={clearFilters}
           categorias={categorias}
           categoriasLoading={categoriasLoading}
-          resultCount={productos.length}
-          loading={loading}
+          resultCount={sorted.length}
           rangoError={rangoError}
         />
 
         <ProductoTable
-          productos={productos}
+          productos={paginated}
           loading={loading}
           error={error}
           isSearchActive={hasActiveFilters(filters)}
           togglingId={togglingId}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          page={clampedPage}
+          pageCount={pageCount}
+          onSort={handleSort}
+          onPageChange={setPage}
           onRetry={refreshAll}
           onEdit={openEdit}
           onToggleStatus={handleToggleStatus}

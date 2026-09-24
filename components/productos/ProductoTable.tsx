@@ -1,12 +1,26 @@
 "use client"
 
-import { PackageOpen, SearchX, ServerCrash, Power, PowerOff, Pencil, Trash2, Loader2 } from "lucide-react"
+import {
+  PackageOpen,
+  SearchX,
+  ServerCrash,
+  Power,
+  PowerOff,
+  Pencil,
+  Trash2,
+  Loader2,
+  ArrowUp,
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PermissionGate } from "@/components/permission-gate"
 import { useAuthorization } from "@/auth/authorization"
-import type { Producto } from "@/types/producto"
+import { cn } from "@/lib/utils"
+import type { Producto, ProductoSortField, SortDirection } from "@/types/producto"
 
 type ProductoTableProps = {
   productos: Producto[]
@@ -14,6 +28,12 @@ type ProductoTableProps = {
   error: string | null
   isSearchActive: boolean
   togglingId: string | null
+  sortField: ProductoSortField
+  sortDirection: SortDirection
+  page: number
+  pageCount: number
+  onSort: (field: ProductoSortField) => void
+  onPageChange: (page: number) => void
   onRetry: () => void
   onEdit: (producto: Producto) => void
   onToggleStatus: (producto: Producto) => void
@@ -26,9 +46,18 @@ const currency = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 2,
 })
 
+const dateFormatter = new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "short", year: "numeric" })
+
 function formatPrecio(precio: number): string {
   if (typeof precio !== "number" || Number.isNaN(precio)) return "—"
   return currency.format(precio)
+}
+
+function formatFecha(iso?: string): string {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return "—"
+  return dateFormatter.format(d)
 }
 
 export function ProductoTable({
@@ -37,6 +66,12 @@ export function ProductoTable({
   error,
   isSearchActive,
   togglingId,
+  sortField,
+  sortDirection,
+  page,
+  pageCount,
+  onSort,
+  onPageChange,
   onRetry,
   onEdit,
   onToggleStatus,
@@ -70,10 +105,19 @@ export function ProductoTable({
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-border text-left">
-              <Th className="w-[28%]">Producto</Th>
+              <SortableTh field="nombre" label="Producto" width="w-[26%]" sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
               <Th>Categoría</Th>
-              <Th className="w-36 text-right">Precio</Th>
+              <SortableTh field="sku" label="SKU" sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
+              <SortableTh field="precio" label="Precio" width="w-32" align="right" sortField={sortField} sortDirection={sortDirection} onSort={onSort} />
               <Th className="w-28">Estado</Th>
+              <SortableTh
+                field="fechaActualizacion"
+                label="Actualizado"
+                width="w-32"
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={onSort}
+              />
               {showActions ? <Th className="w-48 text-right">Acciones</Th> : null}
             </tr>
           </thead>
@@ -84,24 +128,19 @@ export function ProductoTable({
                 className="border-b border-border last:border-0 transition-colors hover:bg-muted/40"
               >
                 <td className="px-4 py-3">
-                  <div className="flex flex-col">
-                    <span className="font-medium text-foreground">{producto.nombre}</span>
-                    <span className="text-xs text-muted-foreground">SKU: {producto.sku || "—"}</span>
-                  </div>
+                  <span className="font-medium text-foreground">{producto.nombre}</span>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {producto.categoria?.nombre ? (
-                    <Badge variant="muted">{producto.categoria.nombre}</Badge>
-                  ) : (
-                    "—"
-                  )}
+                  {producto.nombreCategoria ? <Badge variant="muted">{producto.nombreCategoria}</Badge> : "—"}
                 </td>
+                <td className="px-4 py-3 text-muted-foreground">{producto.sku || "—"}</td>
                 <td className="px-4 py-3 text-right font-medium text-foreground tabular-nums">
                   {formatPrecio(producto.precio)}
                 </td>
                 <td className="px-4 py-3">
                   <EstadoBadge activo={producto.activo} />
                 </td>
+                <td className="px-4 py-3 text-muted-foreground">{formatFecha(producto.fechaActualizacion)}</td>
                 {showActions ? (
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
@@ -129,9 +168,9 @@ export function ProductoTable({
               <div className="flex flex-col gap-1">
                 <span className="font-medium text-foreground">{producto.nombre}</span>
                 <span className="text-xs text-muted-foreground">SKU: {producto.sku || "—"}</span>
-                {producto.categoria?.nombre ? (
+                {producto.nombreCategoria ? (
                   <span className="mt-0.5 w-fit">
-                    <Badge variant="muted">{producto.categoria.nombre}</Badge>
+                    <Badge variant="muted">{producto.nombreCategoria}</Badge>
                   </span>
                 ) : null}
               </div>
@@ -142,6 +181,9 @@ export function ProductoTable({
                 </span>
               </div>
             </div>
+            <span className="text-xs text-muted-foreground">
+              Actualizado: {formatFecha(producto.fechaActualizacion)}
+            </span>
             {showActions ? (
               <div className="flex items-center gap-1">
                 <RowActions
@@ -156,6 +198,24 @@ export function ProductoTable({
           </li>
         ))}
       </ul>
+
+      {pageCount > 1 ? (
+        <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+          <span className="text-xs text-muted-foreground">
+            Página {page} de {pageCount}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
+              <ChevronLeft />
+              Anterior
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => onPageChange(page + 1)} disabled={page >= pageCount}>
+              Siguiente
+              <ChevronRight />
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -230,6 +290,44 @@ function Th({ children, className = "" }: { children: React.ReactNode; className
   )
 }
 
+function SortableTh({
+  field,
+  label,
+  width,
+  align,
+  sortField,
+  sortDirection,
+  onSort,
+}: {
+  field: ProductoSortField
+  label: string
+  width?: string
+  align?: "left" | "right"
+  sortField: ProductoSortField
+  sortDirection: SortDirection
+  onSort: (field: ProductoSortField) => void
+}) {
+  const active = sortField === field
+  return (
+    <th className={cn("px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground", width)}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className={cn(
+          "inline-flex items-center gap-1 transition-colors hover:text-foreground",
+          align === "right" && "float-right",
+          active && "text-foreground",
+        )}
+      >
+        {label}
+        {active ? (
+          sortDirection === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />
+        ) : null}
+      </button>
+    </th>
+  )
+}
+
 function TableSkeleton({ showActions }: { showActions: boolean }) {
   return (
     <div className="rounded-xl border border-border bg-card">
@@ -237,10 +335,12 @@ function TableSkeleton({ showActions }: { showActions: boolean }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left">
-              <Th className="w-[28%]">Producto</Th>
+              <Th className="w-[26%]">Producto</Th>
               <Th>Categoría</Th>
-              <Th className="w-36 text-right">Precio</Th>
+              <Th>SKU</Th>
+              <Th className="w-32 text-right">Precio</Th>
               <Th className="w-28">Estado</Th>
+              <Th className="w-32">Actualizado</Th>
               {showActions ? <Th className="w-48 text-right">Acciones</Th> : null}
             </tr>
           </thead>
@@ -254,12 +354,18 @@ function TableSkeleton({ showActions }: { showActions: boolean }) {
                   <Skeleton className="h-5 w-20 rounded-full" />
                 </td>
                 <td className="px-4 py-3.5">
+                  <Skeleton className="h-4 w-16" />
+                </td>
+                <td className="px-4 py-3.5">
                   <div className="flex justify-end">
                     <Skeleton className="h-4 w-20" />
                   </div>
                 </td>
                 <td className="px-4 py-3.5">
                   <Skeleton className="h-5 w-16 rounded-full" />
+                </td>
+                <td className="px-4 py-3.5">
+                  <Skeleton className="h-4 w-16" />
                 </td>
                 {showActions ? (
                   <td className="px-4 py-3.5">

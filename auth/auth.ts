@@ -24,6 +24,10 @@ const developmentUser: AuthUser = {
     "PRODUCTOS_CREATE",
     "PRODUCTOS_UPDATE",
     "PRODUCTOS_DELETE",
+    // Empresa profile (view + edit)
+    "EMPRESA_READ",
+    "EMPRESA_CREATE",
+    "EMPRESA_UPDATE",
     // Sidebar modules visible during development
     "DASHBOARD_READ",
     "CLIENTES_READ",

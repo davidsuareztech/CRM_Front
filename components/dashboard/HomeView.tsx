@@ -102,9 +102,9 @@ export function HomeView() {
     const map = new Map<string, { nombre: string; total: number; activos: number }>()
     for (const c of categorias) map.set(c.id, { nombre: c.nombre, total: 0, activos: 0 })
     for (const p of productos) {
-      const id = p.categoria?.id
+      const id = p.idCategoria
       if (!id) continue
-      const entry = map.get(id) ?? { nombre: p.categoria?.nombre ?? "Sin categoría", total: 0, activos: 0 }
+      const entry = map.get(id) ?? { nombre: p.nombreCategoria ?? "Sin categoría", total: 0, activos: 0 }
       entry.total += 1
       if (p.activo) entry.activos += 1
       map.set(id, entry)
